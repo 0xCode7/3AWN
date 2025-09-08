@@ -41,7 +41,16 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+        # serializer already returns user + tokens in validate()
+        data = serializer.validated_data
+
+        return Response({
+            "success": True,
+            "message": "Login successful",
+            "user": data["user"],
+            "tokens": data["tokens"],
+        })
 
 
 class LogoutView(APIView):
@@ -55,4 +64,3 @@ class LogoutView(APIView):
             return Response({"message": "Logged out successfully"}, status=status.HTTP_205_RESET_CONTENT)
         except TokenError:
             return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
-
