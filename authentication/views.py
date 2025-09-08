@@ -3,11 +3,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer
 from django.contrib.auth import get_user_model
-from django.conf import settings
 from rest_framework import status, generics
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.generics import GenericAPIView
+from rest_framework import status
+
 
 User = get_user_model()
 
@@ -37,12 +39,14 @@ class RegisterView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class LoginView(APIView):
-    def post(self, request):
-        serializer = LoginSerializer(data=request.data)
+
+class LoginView(GenericAPIView):
+    serializer_class = LoginSerializer  # ✅ important
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # serializer already returns user + tokens in validate()
         data = serializer.validated_data
 
         return Response({
@@ -50,13 +54,15 @@ class LoginView(APIView):
             "message": "Login successful",
             "user": data["user"],
             "tokens": data["tokens"],
-        })
+        }, status=status.HTTP_200_OK)
 
 
-class LogoutView(APIView):
+
+class LogoutView(GenericAPIView):
+    serializer_class = serializers.Serializer  # dummy, so schema works
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         try:
             refresh_token = request.data.get("refresh")
             token = RefreshToken(refresh_token)
