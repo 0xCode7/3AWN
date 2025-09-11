@@ -46,6 +46,8 @@ INSTALLED_APPS = [
 
     # My apps
     'authentication',
+    'drugs',
+    'emergency'
 ]
 
 MIDDLEWARE = [
