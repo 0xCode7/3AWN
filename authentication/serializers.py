@@ -39,11 +39,14 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField()
 
     def validate(self, data):
-        username = User.objects.get(email=data['email'])
-        user = authenticate(username=username, password=data["password"])
 
+        user_obj = User.objects.filter(email=data['email']).first()
+        if not user_obj:
+            raise serializers.ValidationError({"message":"Invalid email or password"})
+
+        user = authenticate(username=user_obj.username, password=data['password'])
         if not user:
-            raise serializers.ValidationError("Invalid email or password")
+            raise serializers.ValidationError({"message":"Invalid email or password"})
 
         refresh = RefreshToken.for_user(user)
         return {
