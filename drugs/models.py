@@ -11,7 +11,7 @@ class Medication(models.Model):
     type = models.CharField(max_length=60, default='Tablet')
     times_per_day = models.IntegerField(default=1)
     duration_in_days = models.IntegerField(default=7)
-    start_date = models.DateField()
+    start_date = models.DateField(auto_now_add=True)
     dose_taken = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
