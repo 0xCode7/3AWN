@@ -9,7 +9,7 @@ class User(AbstractUser):
     full_name = models.CharField(max_length=255, null=False, blank=False)
     phone = models.CharField(max_length=20, blank=True)
     reset_code = models.CharField(max_length=6, null=True)
-    reset_token = models.CharField(max_length=6, null=True)
+    reset_token = models.CharField(max_length=255, null=True)
 
     def save(self, *args, **kwargs):
         if not self.username:
