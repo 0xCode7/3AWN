@@ -1,5 +1,8 @@
+from datetime import timedelta
+from random import random
+
 from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework import serializers
 from .models import User
 
@@ -56,3 +59,39 @@ class LoginSerializer(serializers.Serializer):
                 "refresh": str(refresh),
             }
         }
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("User with this email does not exist.")
+        return value
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    reset_token = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError({"message": "Passwords do not match"})
+
+        token = AccessToken(data['reset_token'])
+
+        try:
+            user = User.objects.get(id=token['user_id'])
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"message": "User does not exist"})
+
+        if user.reset_code != data["code"]:
+            raise serializers.ValidationError({"message": "Invalid reset code"})
+
+        # verify token
+        if user.reset_token != str(token):
+            raise serializers.ValidationError({"message": "Invalid reset token"})
+
+        return data
