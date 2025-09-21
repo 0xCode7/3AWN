@@ -3,8 +3,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Medication, Drug
-from .serializers import MedicationSerializer, DDIPredictSerializer
-from .ddi_model import clf, preprocess_input, severity_messages
+from .serializers import MedicationSerializer
+from .ddi_model import predict_ddi
+
 
 class MedicationListCreateView(generics.ListCreateAPIView):
     serializer_class = MedicationSerializer
@@ -18,7 +19,6 @@ class MedicationListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         medication = serializer.save(user=self.request.user)
 
-        # check interactions
         interactions = []
         user_meds = Medication.objects.filter(user=self.request.user).exclude(id=medication.id)
 
@@ -35,15 +35,13 @@ class MedicationListCreateView(generics.ListCreateAPIView):
             except Drug.DoesNotExist:
                 existing_active = med.name
 
-            features = preprocess_input(new_active, existing_active)
-            if features is not None:
-                severity_prediction = clf.predict([features])[0]
-                severity_message = severity_messages.get(severity_prediction)
-                if severity_prediction > 0:
-                    interactions.append({
-                        "with": med.name,
-                        "severity": severity_message
-                    })
+            result = predict_ddi(new_active, existing_active)
+            if result["label"] == "yes":
+                interactions.append({
+                    "with": med.name,
+                    "severity": result["message"],
+                    "probability": result["probability"]
+                })
 
         headers = self.get_success_headers(serializer.data)
         return Response(
@@ -64,16 +62,20 @@ class MedicationDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class DDIPredictView(APIView):
     def post(self, request):
-        drug_a = request.data.get("drug_a", "")
-        drug_b = request.data.get("drug_b", "")
+        drug_a = request.data.get("drug_a", "").strip()
+        drug_b = request.data.get("drug_b", "").strip()
 
-        # Preprocess input
-        features = preprocess_input(drug_a, drug_b)
-        if features is None:
-            return Response({"error": "Drug not found in model. Please use generic names."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        if not drug_a or not drug_b:
+            return Response(
+                {"error": "Both drug_a and drug_b are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Predict
-        severity_prediction = clf.predict([features])[0]
-        severity_message = severity_messages.get(severity_prediction, "Unknown interaction level.")
-        return Response({"severity": severity_message})
+        try:
+            result = predict_ddi(drug_a, drug_b)
+            return Response(result)
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

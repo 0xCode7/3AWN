@@ -1,6 +1,5 @@
 from django.db import models
 from authentication.models import User
-from .ddi_model import clf, preprocess_input, severity_messages
 
 
 class Drug(models.Model):
