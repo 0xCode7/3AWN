@@ -18,16 +18,19 @@ class MedicationListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # Check if medication already exists
         if Medication.objects.filter(user=request.user, name__iexact=serializer.validated_data["name"]).exists():
             return Response(
                 {"detail": "Medication already exists for this user."},
                 status=status.HTTP_200_OK
             )
 
+        # Save new medication
         medication = serializer.save(user=self.request.user)
 
-        interactions = []
+        # Only check interactions with existing medications (excluding the new one)
         user_meds = Medication.objects.filter(user=self.request.user).exclude(id=medication.id)
+        interactions = []
 
         try:
             drug_obj = Drug.objects.get(name__iexact=medication.name)
@@ -47,7 +50,8 @@ class MedicationListCreateView(generics.ListCreateAPIView):
                 interactions.append({
                     "with": med.name,
                     "severity": result["message"],
-                    "probability": result["probability"]
+                    "probability": result["probability"],
+                    "severity_category": result["severity_category"]
                 })
 
         headers = self.get_success_headers(serializer.data)
@@ -56,7 +60,6 @@ class MedicationListCreateView(generics.ListCreateAPIView):
             status=status.HTTP_201_CREATED,
             headers=headers
         )
-
 
 class MedicationDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = MedicationSerializer
