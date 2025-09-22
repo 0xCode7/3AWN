@@ -37,15 +37,22 @@ def main():
             try:
                 # Get user input
                 drug1, drug2 = get_user_input()
-                
-                # Make prediction using the function from ddi_pipeline
-                prediction, probability = predict_interaction(drug1, drug2)
-                
-                # Display result
-                print("\n" + "="*50)
-                print(f"Checking interaction between: {drug1} and {drug2}")
-                print(format_prediction(prediction, probability))
-                print("="*50 + "\n")
+
+                # Check if both inputs are the same drug
+                if drug1.lower() == drug2.lower():
+                    print("\n" + "="*50)
+                    print(f"You entered the same drug twice: {drug1}")
+                    print("Result: They are the SAME drug, no interaction check needed.")
+                    print("="*50 + "\n")
+                else:
+                    # Make prediction using the function from ddi_pipeline
+                    prediction, probability = predict_interaction(drug1, drug2)
+                    
+                    # Display result
+                    print("\n" + "="*50)
+                    print(f"Checking interaction between: {drug1} and {drug2}")
+                    print(format_prediction(prediction, probability))
+                    print("="*50 + "\n")
                 
                 # Ask to continue
                 if input("Check another pair? (y/n): ").lower() != 'y':
@@ -58,7 +65,7 @@ def main():
                 
     except Exception as e:
         print(f"Error: {str(e)}")
-        print("Please make sure the model file exists and is valid.")
+        print("Please make sure the model file exists and is valid.")
 
 if __name__ == "__main__":
     main()

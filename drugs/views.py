@@ -17,6 +17,13 @@ class MedicationListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        if Medication.objects.filter(user=request.user, name__iexact=serializer.validated_data["name"]).exists():
+            return Response(
+                {"detail": "Medication already exists for this user."},
+                status=status.HTTP_200_OK
+            )
+
         medication = serializer.save(user=self.request.user)
 
         interactions = []

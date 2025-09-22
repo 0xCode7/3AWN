@@ -1,8 +1,20 @@
-Flask==3.1.2
-joblib==1.5.2
-numpy==2.2.6
+# Core ML and Data Processing
 pandas==2.3.2
-scikit-learn==1.7.1
+numpy==2.2.6
+scikit-learn==1.7.2
 scipy==1.15.3
+joblib==1.5.2
+
+# Web Framework
+Flask==3.1.2
+
+# Text Processing and Fuzzy Matching
 rapidfuzz==3.14.1
+
+# Database (Optional - for Neo4j integration)
 neo4j==5.28.2
+
+# Additional utilities
+python-dateutil>=2.8.2
+pytz>=2020.1
+threadpoolctl>=3.1.0
