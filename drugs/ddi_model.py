@@ -1,26 +1,47 @@
+import os
 import joblib
+import pandas as pd
+import tempfile
+import requests
 from django.conf import settings
 from pathlib import Path
 
 # ==========================================================
-# ✅ إعدادات الموديل المحلي
+# ✅ Model configuration
 # ==========================================================
 LOCAL_MODEL_PATH = Path(settings.BASE_DIR) / "drugs" / "ai_model" / "best_ddi_model.pkl"
+
+# 🧠 Replace this with your Hugging Face file URL (raw link)
+REMOTE_MODEL_URL = "https://huggingface.co/0xCode/3AWN/resolve/main/best_ddi_model.pkl"
+
 ddi_model = None
 
 
 # ==========================================================
-# ✅ تحميل الموديل مرة واحدة فقط وقت تشغيل السيرفر
+# ✅ Load the model (local → fallback to HuggingFace)
 # ==========================================================
 def load_ddi_model():
     global ddi_model
 
     try:
-        if not LOCAL_MODEL_PATH.exists():
-            raise FileNotFoundError(f"Model not found at {LOCAL_MODEL_PATH}")
+        if LOCAL_MODEL_PATH.exists():
+            print(f"✅ Loading local model from: {LOCAL_MODEL_PATH}")
+            ddi_model = joblib.load(LOCAL_MODEL_PATH)
+        else:
+            print("⚠️ Local model not found. Downloading from Hugging Face...")
 
-        print(f"✅ Loading local model from: {LOCAL_MODEL_PATH}")
-        ddi_model = joblib.load(LOCAL_MODEL_PATH)
+            response = requests.get(REMOTE_MODEL_URL, stream=True)
+            response.raise_for_status()
+
+            # Save temporarily
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as tmp_file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    tmp_file.write(chunk)
+                tmp_path = tmp_file.name
+
+            print(f"✅ Downloaded remote model → {tmp_path}")
+            ddi_model = joblib.load(tmp_path)
+
         print("✅ Model loaded successfully!")
 
     except Exception as e:
@@ -28,47 +49,32 @@ def load_ddi_model():
         ddi_model = None
 
 
-# حمّل الموديل عند تشغيل السيرفر
-load_ddi_model()
-
-
 # ==========================================================
-# 🔮 دالة التنبؤ
+# 🔮 Prediction function
 # ==========================================================
 def predict_ddi_api(drug_a, drug_b):
-    import pandas as pd
-    import numpy as np
-
     if ddi_model is None:
         return {"error": "Model not loaded."}
 
-    # 🧠 نحافظ على القيم كنصوص بدل ما نحولها لأرقام hash
-    X = pd.DataFrame(
-        [[drug_a, drug_b]],
-        columns=["drug1_name", "drug2_name"]
-    )
-
     try:
-        # بعض الموديلات تعمل مع النصوص مباشرة (مثل pipeline فيها encoder)
-        if hasattr(ddi_model, "predict_proba"):
-            proba = float(ddi_model.predict_proba(X)[0][1])
-        else:
-            proba = float(ddi_model.predict(X)[0])
+        X = pd.DataFrame([{"drug1_name": drug_a, "drug2_name": drug_b}])
+        proba = ddi_model.predict_proba(X)[0][1]
+
+        label = "yes" if proba >= 0.5 else "no"
+        severity = "High" if proba > 0.8 else "Moderate" if proba > 0.5 else "Low"
+
+        return {
+            "label": label,
+            "probability": float(proba),
+            "message": f"Interaction probability: {proba:.2f}",
+            "severity_category": severity,
+        }
+
     except Exception as e:
-        return {"error": f"Prediction failed: {e}"}
+        return {"error": f"Prediction failed: {str(e)}"}
 
-    label = "yes" if proba > 0.5 else "no"
 
-    if proba > 0.8:
-        severity = "High"
-    elif proba > 0.5:
-        severity = "Moderate"
-    else:
-        severity = "Low"
-
-    return {
-        "label": label,
-        "probability": round(proba, 3),
-        "message": f"Interaction probability: {proba:.2f}",
-        "severity_category": severity,
-    }
+# ==========================================================
+# ⚡ Load on server startup
+# ==========================================================
+load_ddi_model()
