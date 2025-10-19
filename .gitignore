@@ -1,0 +1,43 @@
+@"
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+*.log
+*.pot
+*.pyc
+db.sqlite3
+
+# Virtual env
+.env
+venv/
+env/
+.venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large or generated files
+*.csv
+*.pkl
+*.zip
+*.h5
+*.pt
+*.bin
+*.tar
+*.gz
+
+# Node / JS builds (if any)
+node_modules/
+dist/
+build/
+"@ | Out-File -Encoding utf8 .gitignore
