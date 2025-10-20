@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Medication, Drug, DrugAlternative
-from .serializers import MedicationSerializer, DrugSerializer
+from .serializers import MedicationSerializer, DrugSerializer, DrugAlternativeSerializer
 from .ddi_model import predict_ddi_api
 
 class MedicationListCreateView(generics.ListCreateAPIView):
@@ -76,7 +76,7 @@ class MedicationDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class DrugAlternativesView(generics.ListAPIView):
-    serializer_class = DrugSerializer
+    serializer_class = DrugAlternativeSerializer
 
     def get_queryset(self):
         params = self.request.query_params
@@ -95,9 +95,10 @@ class DrugAlternativesView(generics.ListAPIView):
         if not drug:
             return Drug.objects.none()
 
+        print(drug)
         # Return drugs with same active ingredient but exclude current drug
-        return Drug.objects.filter(
-            active_ingredient__iexact=drug.active_ingredient
+        return DrugAlternative.objects.filter(
+            drug_id=drug.id
         ).exclude(id=drug.id)
 
 

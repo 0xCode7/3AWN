@@ -77,4 +77,4 @@ def predict_ddi_api(drug_a, drug_b):
 # ==========================================================
 # ⚡ Load on server startup
 # ==========================================================
-load_ddi_model()
+# load_ddi_model()
