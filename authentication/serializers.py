@@ -10,7 +10,7 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', "full_name",'email', 'phone']
+        fields = ['id', "full_name", 'email', 'phone', 'role']
         read_only_fields = ['id', 'email']
 
 
@@ -19,14 +19,21 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     email = serializers.EmailField(required=True)
     phone = serializers.CharField(required=False, allow_blank=True)
+    role = serializers.CharField(required=True)
 
     class Meta:
         model = User
-        fields = ['full_name', 'email', 'password', 'phone']
+        fields = ['full_name', 'email', 'password', 'phone', 'role']
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email already exists")
+        return value
+
+    def validate_role(self, value):
+        valid_roles = dict(User.ROLE_CHOICES).keys()
+        if value not in valid_roles:
+            raise serializers.ValidationError("Role must be 'patient' or 'careperson'.")
         return value
 
     def create(self, validated_data):
@@ -45,11 +52,11 @@ class LoginSerializer(serializers.Serializer):
 
         user_obj = User.objects.filter(email=data['email']).first()
         if not user_obj:
-            raise serializers.ValidationError({"message":"Invalid email or password"})
+            raise serializers.ValidationError({"message": "Invalid email or password"})
 
         user = authenticate(username=user_obj.username, password=data['password'])
         if not user:
-            raise serializers.ValidationError({"message":"Invalid email or password"})
+            raise serializers.ValidationError({"message": "Invalid email or password"})
 
         refresh = RefreshToken.for_user(user)
         return {
