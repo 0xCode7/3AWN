@@ -80,4 +80,4 @@ def predict_ddi_api(drug_a: str, drug_b: str) -> dict:
 # ==========================================================
 # ⚡ Auto-load model on startup
 # ==========================================================
-load_ddi_model()
+# load_ddi_model()
