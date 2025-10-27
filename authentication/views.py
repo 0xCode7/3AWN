@@ -3,7 +3,7 @@ from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, ForgotPasswordSerializer, \
-    ResetPasswordSerializer
+    ResetPasswordSerializer, PatientSerializer, CarePersonSerializer
 from django.contrib.auth import get_user_model
 from rest_framework import status, generics
 from rest_framework.response import Response
@@ -12,6 +12,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework.generics import GenericAPIView
 from rest_framework import status
 from rest_framework.views import APIView
+
 User = get_user_model()
 
 
@@ -70,6 +71,29 @@ class LogoutView(GenericAPIView):
         except TokenError:
             return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
+
+class ProfileView(APIView):
+    """
+    Return the authenticated user's profile data.
+    - For patients: includes patient code and medical history
+    - For carepersons: includes assigned patients
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if user.role == 'patient':
+            serializer = PatientSerializer(user.patient_profile)
+        elif user.role == 'careperson':
+            serializer = CarePersonSerializer(user.careperson_profile)
+        else:
+            serializer = UserSerializer(user)
+
+        return Response({
+            "user": UserSerializer(user).data,
+            "profile": serializer.data
+        })
 
 
 class ForgotPasswordView(APIView):

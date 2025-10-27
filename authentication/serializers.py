@@ -12,10 +12,26 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', "full_name", 'email', 'phone', 'role']
         read_only_fields = ['id', 'email']
 
+
 class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
-        fields  =['code']
+        fields = ['id', 'code', 'medical_history']
+        read_only_fields = ['id', 'code']
+
+
+class CarePersonSerializer(serializers.ModelSerializer):
+    patients = serializers.PrimaryKeyRelatedField(
+        queryset=Patient.objects.all(),
+        many=True,
+        required=False
+    )
+
+    class Meta:
+        model = CarePerson
+        fields = ['id', 'patients']
+        read_only_fields = ['id']
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(required=True)

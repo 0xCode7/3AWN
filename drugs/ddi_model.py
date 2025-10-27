@@ -9,9 +9,7 @@ from pathlib import Path
 # ==========================================================
 # ✅ Model configuration
 # ==========================================================
-LOCAL_MODEL_PATH = Path(settings.BASE_DIR) / "drugs" / "ai_model" / "best_ddi_model.pkl"
-
-# 🧠 Replace this with your Hugging Face file URL (raw link)
+LOCAL_MODEL_PATH = Path(settings.BASE_DIR) / "drugs" / "ai_model" / "ddi_model.pkl"
 REMOTE_MODEL_URL = "https://huggingface.co/0xCode/3AWN/resolve/main/best_ddi_model.pkl"
 
 ddi_model = None
@@ -21,6 +19,7 @@ ddi_model = None
 # ✅ Load the model (local → fallback to HuggingFace)
 # ==========================================================
 def load_ddi_model():
+    """Load the DDI prediction model from local or remote source."""
     global ddi_model
 
     try:
@@ -33,7 +32,6 @@ def load_ddi_model():
             response = requests.get(REMOTE_MODEL_URL, stream=True)
             response.raise_for_status()
 
-            # Save temporarily
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as tmp_file:
                 for chunk in response.iter_content(chunk_size=8192):
                     tmp_file.write(chunk)
@@ -52,16 +50,21 @@ def load_ddi_model():
 # ==========================================================
 # 🔮 Prediction function
 # ==========================================================
-def predict_ddi_api(drug_a, drug_b):
+def predict_ddi_api(drug_a: str, drug_b: str) -> dict:
+    """Predict the drug-drug interaction probability."""
     if ddi_model is None:
-        return {"error": "Model not loaded."}
+        return {"error": "Model not loaded. Please call load_ddi_model() first."}
 
     try:
         X = pd.DataFrame([{"drug1_name": drug_a, "drug2_name": drug_b}])
         proba = ddi_model.predict_proba(X)[0][1]
 
         label = "yes" if proba >= 0.5 else "no"
-        severity = "High" if proba > 0.8 else "Moderate" if proba > 0.5 else "Low"
+        severity = (
+            "High" if proba > 0.8 else
+            "Moderate" if proba > 0.5 else
+            "Low"
+        )
 
         return {
             "label": label,
@@ -75,6 +78,6 @@ def predict_ddi_api(drug_a, drug_b):
 
 
 # ==========================================================
-# ⚡ Load on server startup
+# ⚡ Auto-load model on startup
 # ==========================================================
-# load_ddi_model()
+load_ddi_model()
