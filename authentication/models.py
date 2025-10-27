@@ -33,7 +33,7 @@ class User(AbstractUser):
 class Patient(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='patient_profile')
     medical_history = models.TextField(blank=True, null=True)
-    code = models.CharField(max_length=10, blank=False, null=True, unique=True)
+    code = models.CharField(max_length=50, blank=False, null=True, unique=True)
 
     def save(self, *args, **kwargs):
         if not self.code:
