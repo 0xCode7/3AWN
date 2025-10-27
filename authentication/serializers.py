@@ -1,10 +1,9 @@
 from datetime import timedelta
-from random import random
-
+import random, string
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework import serializers
-from .models import User
+from .models import User, Patient, CarePerson
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -13,6 +12,10 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', "full_name", 'email', 'phone', 'role']
         read_only_fields = ['id', 'email']
 
+class PatientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Patient
+        fields  =['code']
 
 class RegisterSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(required=True)

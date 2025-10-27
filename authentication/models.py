@@ -1,4 +1,4 @@
-import uuid
+import uuid, random, string
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
@@ -23,7 +23,6 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
     def clean(self):
-        # enforce only the two roles
         if self.role not in dict(self.ROLE_CHOICES):
             raise ValidationError("Invalid role. Must be 'patient' or 'careperson'.")
 
@@ -34,6 +33,12 @@ class User(AbstractUser):
 class Patient(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='patient_profile')
     medical_history = models.TextField(blank=True, null=True)
+    code = models.CharField(max_length=10, blank=False, null=True, unique=True)
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = f"PT-{''.join(random.choices(string.ascii_letters + string.digits, k=8))}"
+        super().save(*args, **kwargs)
 
     def clean(self):
         if self.user.role != 'patient':
