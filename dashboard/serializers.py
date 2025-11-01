@@ -4,18 +4,17 @@ from .models import ConnectionRequest
 
 
 class AllConnectionRequestsSerializer(serializers.ModelSerializer):
-    patient = serializers.SerializerMethodField()
+    careperson = serializers.SerializerMethodField()
 
     class Meta:
         model = ConnectionRequest
-        fields = ['id', 'patient', 'status', 'created_at']
+        fields = ['id', 'careperson', 'status', 'created_at']
 
-    def get_patient(self, obj):
+    def get_careperson(self, obj):
         """Show patient info in list"""
         return {
-            "id": obj.patient.id,
-            "full_name": obj.patient.user.full_name,
-            "code": obj.patient.code,
+            "id": obj.careperson.id,
+            "full_name": obj.careperson.user.full_name,
         }
 
 
