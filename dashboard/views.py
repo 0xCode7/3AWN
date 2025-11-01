@@ -26,7 +26,7 @@ class PatientIncomingRequestsView(generics.ListAPIView):
         try:
             patient = Patient.objects.get(user=user.id)
         except Patient.DoesNotExist:
-            return ConnectionRequest.objects.none()
+            return ValidationError({"message": ["User Doesn't exist"]})
 
         return ConnectionRequest.objects.filter(patient=patient, status='pending').order_by('-created_at')
 
