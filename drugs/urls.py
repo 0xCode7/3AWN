@@ -4,6 +4,8 @@ from .views import (
     MarkAsTakenView
 )
 
+app_name = "drugs"
+
 urlpatterns = [
     # Medications
     path('', MedicationListCreateView.as_view(), name='medications-list-create'),

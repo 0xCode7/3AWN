@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,7 +8,7 @@ from .models import Medication, Drug, DrugAlternative
 from .serializers import MedicationSerializer, DrugSerializer, DrugAlternativeSerializer
 from .ddi_model import predict_ddi_api
 
-
+@extend_schema(tags=["Drugs"])
 class MedicationListCreateView(generics.ListCreateAPIView):
     serializer_class = MedicationSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -67,7 +68,7 @@ class MedicationListCreateView(generics.ListCreateAPIView):
             headers=headers
         )
 
-
+@extend_schema(tags=["Drugs"])
 class MedicationDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = MedicationSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -76,7 +77,7 @@ class MedicationDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return Medication.objects.filter(user=self.request.user)
 
-
+@extend_schema(tags=["Drugs"])
 class DrugAlternativesView(generics.ListAPIView):
     serializer_class = DrugAlternativeSerializer
 
@@ -103,7 +104,7 @@ class DrugAlternativesView(generics.ListAPIView):
             drug_id=drug.id
         ).exclude(id=drug.id)
 
-
+@extend_schema(tags=["Drugs"])
 class HerbalAlternativesView(generics.GenericAPIView):
 
     def get(self, request, *args, **kwargs):
@@ -133,7 +134,7 @@ class HerbalAlternativesView(generics.GenericAPIView):
             "herbal_alternatives": sorted(list(herbs))
         }, status=status.HTTP_200_OK)
 
-
+@extend_schema(tags=["Drugs"])
 class MarkAsTakenView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -172,7 +173,7 @@ class MarkAsTakenView(generics.UpdateAPIView):
             "dose_taken": dose_data[today_str]
         }, status=status.HTTP_200_OK)
 
-
+@extend_schema(tags=["Drugs"])
 class DDIPredictView(APIView):
     def post(self, request):
         drug_a = request.data.get("drug_a", "").strip()

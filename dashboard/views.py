@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -13,6 +14,7 @@ from .serializers import ConnectionRequestSerializer, ConnectionResponseSerializ
 
 
 # Return all patient requests
+@extend_schema(tags=["Dashboard"])
 class PatientIncomingRequestsView(generics.ListAPIView):
     serializer_class = AllConnectionRequestsSerializer
     permission_classes = [IsAuthenticated]
@@ -30,6 +32,7 @@ class PatientIncomingRequestsView(generics.ListAPIView):
 
 
 # CarePerson sends a connection request
+@extend_schema(tags=["Dashboard"])
 class SendConnectionRequestView(generics.CreateAPIView):
     serializer_class = ConnectionRequestSerializer
     permission_classes = [IsAuthenticated]
@@ -40,6 +43,7 @@ class SendConnectionRequestView(generics.CreateAPIView):
 
 
 # Patient accepts/rejects a request
+@extend_schema(tags=["Dashboard"])
 class RespondToConnectionRequestView(generics.UpdateAPIView):
     queryset = ConnectionRequest.objects.all()
     serializer_class = ConnectionResponseSerializer
@@ -61,6 +65,7 @@ class RespondToConnectionRequestView(generics.UpdateAPIView):
 
 
 # User Report
+@extend_schema(tags=["Dashboard"])
 class PatientStatisticsView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
 

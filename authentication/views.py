@@ -1,5 +1,6 @@
-import os, json, random
+import random
 from datetime import timedelta
+from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, ForgotPasswordSerializer, \
@@ -12,11 +13,13 @@ from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework.generics import GenericAPIView
 from rest_framework import status
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 User = get_user_model()
 
 
 # Create your views here.
+@extend_schema(tags=["Authentication"])
 class RegisterView(generics.CreateAPIView):
     """
         POST register → Create User
@@ -41,6 +44,7 @@ class RegisterView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(tags=["Authentication"])
 class LoginView(GenericAPIView):
     serializer_class = LoginSerializer  # ✅ important
 
@@ -58,6 +62,7 @@ class LoginView(GenericAPIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=["Authentication"])
 class LogoutView(GenericAPIView):
     serializer_class = serializers.Serializer  # dummy, so schema works
     permission_classes = [IsAuthenticated]
@@ -72,6 +77,7 @@ class LogoutView(GenericAPIView):
             return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(tags=["Authentication"])
 class ProfileView(APIView):
     """
     Return the authenticated user's profile data.
@@ -96,6 +102,7 @@ class ProfileView(APIView):
         })
 
 
+@extend_schema(tags=["Authentication"])
 class ForgotPasswordView(APIView):
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
@@ -124,11 +131,11 @@ class ForgotPasswordView(APIView):
         )
 
 
+@extend_schema(tags=["Authentication"])
 class ResetPasswordView(APIView):
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
 
         data = serializer.validated_data
         token = AccessToken(data['reset_token'])
@@ -141,3 +148,8 @@ class ResetPasswordView(APIView):
         user.save()
 
         return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["Authentication"])
+class TokenRefreshView(TokenRefreshView):
+    pass

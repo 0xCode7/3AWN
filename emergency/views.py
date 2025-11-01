@@ -1,7 +1,10 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions
 from .models import EmergencyContact
 from .serializers import EmergencyContactSerializer, EmergencyContact
 
+
+@extend_schema(tags=["Emergency"])
 class EmergencyContactListCreateView(generics.ListCreateAPIView):
     serializer_class = EmergencyContactSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -13,6 +16,7 @@ class EmergencyContactListCreateView(generics.ListCreateAPIView):
         serializer.save(user=self.request.user)
 
 
+@extend_schema(tags=["Emergency"])
 class EmergencyContactDetailView(generics.RetrieveDestroyAPIView):
     serializer_class = EmergencyContactSerializer
     permission_classes = [permissions.IsAuthenticated]
