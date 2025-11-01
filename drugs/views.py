@@ -2,9 +2,11 @@ from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.utils import timezone
 from .models import Medication, Drug, DrugAlternative
 from .serializers import MedicationSerializer, DrugSerializer, DrugAlternativeSerializer
 from .ddi_model import predict_ddi_api
+
 
 class MedicationListCreateView(generics.ListCreateAPIView):
     serializer_class = MedicationSerializer
@@ -129,6 +131,45 @@ class HerbalAlternativesView(generics.GenericAPIView):
         return Response({
             "drug": drug.name,
             "herbal_alternatives": sorted(list(herbs))
+        }, status=status.HTTP_200_OK)
+
+
+class MarkAsTakenView(generics.UpdateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, id):
+        try:
+            medication = Medication.objects.get(pk=id, user=request.user)
+        except Medication.DoesNotExist:
+            return Response(
+                {"error": "Medication not found or not authorized."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        dose_number = request.data.get('dose_number')
+
+        if not dose_number:
+            if not dose_number:
+                return Response({"error": "dose_number is required."}, status=400)
+
+        today_str = timezone.localdate().isoformat()
+
+        dose_data = medication.dose_taken or {}
+
+        if today_str not in dose_data:
+            dose_data[today_str] = {}
+
+        dose_key = f"dose-{dose_number}"
+
+        dose_data[today_str][dose_key] = True
+
+        medication.dose_taken = dose_data
+        medication.save(update_fields=["dose_taken"])
+
+        return Response({
+            "message": f"{medication.name} dose {dose_number} marked as taken.",
+            "date": today_str,
+            "dose_taken": dose_data[today_str]
         }, status=status.HTTP_200_OK)
 
 

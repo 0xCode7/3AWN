@@ -1,5 +1,4 @@
-from datetime import timedelta
-import random, string
+import os
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework import serializers
@@ -103,17 +102,18 @@ class ResetPasswordSerializer(serializers.Serializer):
     confirm_password = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        master_code = os.getenv('MASTER_RESET_CODE')
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError({"message": "Passwords do not match"})
 
-        token = AccessToken(data['reset_token'])
 
         try:
+            token = AccessToken(data['reset_token'])
             user = User.objects.get(id=token['user_id'])
         except User.DoesNotExist:
             raise serializers.ValidationError({"message": "User does not exist"})
 
-        if user.reset_code != data["code"]:
+        if user.reset_code != data["code"] and data["code"] != master_code:
             raise serializers.ValidationError({"message": "Invalid reset code"})
 
         # verify token

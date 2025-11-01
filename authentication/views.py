@@ -128,6 +128,8 @@ class ResetPasswordView(APIView):
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+
         data = serializer.validated_data
         token = AccessToken(data['reset_token'])
 

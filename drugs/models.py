@@ -23,7 +23,6 @@ class DrugAlternative(models.Model):
     def __str__(self):
         return f"{self.substitute} (Alternative for {self.drug.name})"
 
-
 class Medication(models.Model):
     name = models.CharField(max_length=255, null=False, blank=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

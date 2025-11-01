@@ -4,20 +4,11 @@ from .models import ConnectionRequest
 
 
 class AllConnectionRequestsSerializer(serializers.ModelSerializer):
-    careperson = serializers.SerializerMethodField()
     patient = serializers.SerializerMethodField()
 
     class Meta:
         model = ConnectionRequest
-        fields = ['id', 'careperson', 'patient', 'status', 'created_at']
-
-    def get_careperson(self, obj):
-        """Show careperson info in list"""
-        return {
-            "id": obj.careperson.id,
-            "full_name": obj.careperson.user.full_name,
-            "email": obj.careperson.user.email,
-        }
+        fields = ['id', 'patient', 'status', 'created_at']
 
     def get_patient(self, obj):
         """Show patient info in list"""
@@ -83,3 +74,23 @@ class ConnectionResponseSerializer(serializers.ModelSerializer):
         if value not in ['accepted', 'rejected']:
             raise serializers.ValidationError("Status must be 'accepted' or 'rejected'.")
         return value
+
+
+class DayAdherenceSerializer(serializers.Serializer):
+    day = serializers.CharField()
+    taken = serializers.IntegerField()
+    missed = serializers.IntegerField()
+    adherence_rate = serializers.FloatField()
+
+
+class RecentActivitySerializer(serializers.Serializer):
+    medication = serializers.CharField()
+    status = serializers.CharField()
+    time = serializers.DateTimeField()
+
+
+class PatientStatisticsSerializer(serializers.Serializer):
+    patient = serializers.CharField()
+    overview = serializers.DictField()
+    weekly_adherence = DayAdherenceSerializer(many=True)
+    recent_activity = RecentActivitySerializer(many=True)
