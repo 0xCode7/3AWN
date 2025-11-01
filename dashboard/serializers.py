@@ -43,7 +43,7 @@ class ConnectionRequestSerializer(serializers.ModelSerializer):
         patient_code = validated_data.pop('patient_code')
 
         try:
-            patient = Patient.objects.get(code=patient_code)
+            patient = Patient.objects.get(code=str(patient_code))
         except Patient.DoesNotExist:
             raise serializers.ValidationError({"patient_code": "Invalid patient code"})
 
