@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from .models import Medication, Drug, DrugAlternative
-from .serializers import MedicationSerializer, DrugSerializer, DrugAlternativeSerializer
-from .ddi_model import predict_ddi_api
+from .serializers import MedicationSerializer, DrugAlternativeSerializer
+from drugs.ai_model.ddi_model import predict_ddi_api
 
 @extend_schema(tags=["Drugs"])
 class MedicationListCreateView(generics.ListCreateAPIView):
