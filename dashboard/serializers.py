@@ -75,6 +75,20 @@ class ConnectionResponseSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Status must be 'accepted' or 'rejected'.")
         return value
 
+    def update(self, instance, validated_data):
+        status = validated_data['status']
+        instance.status = status
+        instance.save()
+
+        if status == 'accepted':
+            patient = instance.patient
+            careperson = instance.careperson
+
+            patient.carepersons.add(careperson)
+            careperson.patients.add(patient)
+
+        return instance
+
 
 class DayAdherenceSerializer(serializers.Serializer):
     day = serializers.CharField()

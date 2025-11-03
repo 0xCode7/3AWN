@@ -17,7 +17,8 @@ class PatientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Patient
-        fields = ['id', 'user']
+        fields = ['id', 'user', 'code']
+
 
 class CarePersonMiniSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -34,12 +35,14 @@ class CarePersonSerializer(serializers.ModelSerializer):
         model = CarePerson
         fields = ['id', 'patients']
 
+
 class PatientCarePersonSerializer(serializers.ModelSerializer):
     carepersons = CarePersonMiniSerializer(many=True, read_only=True)
 
     class Meta:
         model = Patient
         fields = ['id', 'carepersons']
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(required=True)
