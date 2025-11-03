@@ -99,6 +99,8 @@ class PatientStatisticsView(generics.GenericAPIView):
 
         for med in medications:
             for date_str, doses in med.dose_taken.items():
+                if not isinstance(doses, dict):
+                    continue
                 for status in doses.values():
                     if status:
                         total_taken += 1
@@ -107,6 +109,8 @@ class PatientStatisticsView(generics.GenericAPIView):
 
         for med in medications:
             for date_str, doses in med.dose_taken.items():
+                if not isinstance(doses, dict):
+                    continue
                 for dose_key, status in doses.items():
                     recent_activity.append({
                         "medication": med.name,
@@ -128,6 +132,9 @@ class PatientStatisticsView(generics.GenericAPIView):
 
             for med in medications:
                 if date_str in med.dose_taken:
+                    doses_for_day = med.dose_taken[date_str]
+                    if not isinstance(doses_for_day, dict):
+                        continue
                     for status in med.dose_taken[date_str].values():
                         if status:
                             taken += 1
