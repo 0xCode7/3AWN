@@ -27,6 +27,7 @@ class MedicationSerializer(serializers.ModelSerializer):
             today_str: {f"dose-{i + 1}": False for i in range(validated_data.get("times_per_day", 1))}}
         return super().create(validated_data)
 
+
 class DDIPredictSerializer(serializers.Serializer):
     drug1 = serializers.CharField(max_length=255)
     drug2 = serializers.CharField(max_length=255)

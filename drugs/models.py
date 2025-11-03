@@ -33,6 +33,7 @@ class Medication(models.Model):
     duration_in_days = models.IntegerField(default=7)
     start_date = models.DateField(auto_now_add=True)
     dose_taken = models.JSONField(default=dict, blank=True)
+    is_finished = models.BooleanField(default=False, blank=True)
 
     def __str__(self):
         return f"{self.name} ({self.user.email})"
