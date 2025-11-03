@@ -108,7 +108,7 @@ class DrugAlternativesView(generics.ListAPIView):
 class HerbalAlternativesView(generics.GenericAPIView):
 
     def get(self, request, *args, **kwargs):
-        params = self.request.query_params
+        params = request.query_params
         query = params.get('name')
         drug_id = params.get('id')
 
@@ -122,12 +122,12 @@ class HerbalAlternativesView(generics.GenericAPIView):
         if not drug:
             return Response({"error": "Drug not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Fetch Herbals
-        herbal_alternatives = DrugAlternative.objects.filter(drug=drug).exclude(herbal_alternatives__exact='')
+        herbal_alternatives = DrugAlternative.objects.filter(drug=drug).exclude(herbal_alternatives__isnull=True)
 
         herbs = set()
         for alt in herbal_alternatives:
-            herbs.update([h.strip() for h in alt.herbal_alternatives.split(',') if h.strip()])
+            if alt.herbal_alternatives:
+                herbs.update([h.strip() for h in alt.herbal_alternatives.split(',') if h.strip()])
 
         return Response({
             "drug": drug.name,
@@ -149,19 +149,16 @@ class MarkAsTakenView(generics.UpdateAPIView):
 
         dose_number = request.data.get('dose_number')
 
-        if not dose_number:
-            if not dose_number:
-                return Response({"error": "dose_number is required."}, status=400)
+        if dose_number is None:
+            return Response({"error": "dose_number is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         today_str = timezone.localdate().isoformat()
-
         dose_data = medication.dose_taken or {}
 
         if today_str not in dose_data:
             dose_data[today_str] = {}
 
         dose_key = f"dose-{dose_number}"
-
         dose_data[today_str][dose_key] = True
 
         medication.dose_taken = dose_data
