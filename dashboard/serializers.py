@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from authentication.models import CarePerson, Patient
+from authentication.serializers import UserSerializer
 from .models import ConnectionRequest
 
 
@@ -93,3 +94,10 @@ class PatientStatisticsSerializer(serializers.Serializer):
     overview = serializers.DictField()
     weekly_adherence = DayAdherenceSerializer(many=True)
     recent_activity = RecentActivitySerializer(many=True)
+
+class PatientSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Patient
+        fields = ['id', 'user']

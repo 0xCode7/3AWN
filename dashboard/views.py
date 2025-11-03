@@ -10,7 +10,7 @@ from drugs.models import Medication
 from .models import ConnectionRequest
 from authentication.models import Patient
 from .serializers import ConnectionRequestSerializer, ConnectionResponseSerializer, AllConnectionRequestsSerializer, \
-    PatientStatisticsSerializer
+    PatientStatisticsSerializer, PatientSerializer
 
 
 # Return all patient requests
@@ -77,11 +77,11 @@ class PatientStatisticsView(generics.GenericAPIView):
         if user.role == 'careperson':
             patient_id = request.query_params.get('patient_id')
             if not patient_id:
-                raise ValidationError({"patient_id": ["Patient id is required"]})
+                return user.careperson_profile
             try:
                 return user.careperson_profile.patients.get(id=patient_id)
             except Patient.DoesNotExist:
-                raise ValidationError({"patient_id": ["Patient not found or unauthorized"]})
+                raise ValidationError({"patient_id": "Patient not found or unauthorized"})
 
         raise ValidationError({"role": ["Invalid role"]})
 
@@ -164,3 +164,22 @@ class PatientStatisticsView(generics.GenericAPIView):
 
             serializer = PatientStatisticsSerializer(payload)
             return Response(serializer.data)
+
+@extend_schema(tags=['Dashboard'])
+class MonitoredPatientsViews(generics.ListAPIView):
+    serializer_class = PatientSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role != 'careperson':
+            raise ValidationError({"message": "Invalid role"})
+
+        patients = user.careperson_profile.patients.all()
+
+        if not patients:
+            raise ValidationError({"message": "There is no monitored patients"})
+
+        return patients
+
+
