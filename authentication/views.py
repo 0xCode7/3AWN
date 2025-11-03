@@ -79,54 +79,53 @@ class LogoutView(GenericAPIView):
 
 @extend_schema(tags=["Authentication"])
 class ProfileView(APIView):
-    """
-    Return the authenticated user's profile data.
-    - For patients: includes patient code and medical history
-    - For carepersons: includes assigned patients
-    """
     permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
 
     def get(self, request):
         user = request.user
 
         if user.role == 'patient':
-            serializer = PatientSerializer(user.patient_profile)
+            profile = getattr(user, "patient_profile", None)
+            profile_data = PatientSerializer(profile).data if profile else None
+
         elif user.role == 'careperson':
-            serializer = CarePersonSerializer(user.careperson_profile)
+            profile = getattr(user, "careperson_profile", None)
+            profile_data = CarePersonSerializer(profile).data if profile else None
+
         else:
-            serializer = UserSerializer(user)
+            profile_data = None
 
         return Response({
             "user": UserSerializer(user).data,
-            "profile": serializer.data
+            "profile": profile_data,
+            "role": user.role
         })
+
 
 
 @extend_schema(tags=["Authentication"])
 class ForgotPasswordView(APIView):
+    serializer_class = ForgotPasswordSerializer
+
     def post(self, request):
-        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
 
-        user = User.objects.get(email=email)
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "Email not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # generate random 4-digit code
         code = str(random.randint(1000, 9999))
         user.reset_code = code
-
-        # create a short-lived access token for password reset
-        token = RefreshToken.for_user(user).access_token
-        token.set_exp(lifetime=timedelta(minutes=10))
-        user.reset_token = str(token)
-
         user.save()
+
+        # TODO: send code via email
+
         return Response(
-            {
-                "message": "Code sent to your email successfully",
-                "code": code,  # for testing, in production you send via email
-                "reset_token": str(token)
-            },
+            {"message": "Reset code sent to your email"},
             status=status.HTTP_200_OK
         )
 
@@ -137,17 +136,26 @@ class ResetPasswordView(APIView):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        data = serializer.validated_data
-        token = AccessToken(data['reset_token'])
+        validated_data = serializer.validated_data
 
-        user = User.objects.get(id=token['user_id'])
+        # Validate token
+        try:
+            token = AccessToken(validated_data['reset_token'])
+        except Exception:
+            return Response({"error": "Invalid or expired reset token"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user.set_password(data["password"])
-        user.reset_code = None  # clear code
-        user.reset_token = None  # clear token
+        user = User.objects.filter(id=token['user_id']).first()
+
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user.set_password(validated_data["password"])
+        user.reset_code = None
+        user.reset_token = None
         user.save()
 
         return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)
+
 
 
 @extend_schema(tags=["Authentication"])

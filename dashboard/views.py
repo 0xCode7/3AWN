@@ -87,20 +87,16 @@ class PatientStatisticsView(generics.GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         patient = self.get_patient(request)
-
         user = patient.user
-
         medications = Medication.objects.filter(user=user)
 
-        # Stats
         total_taken = 0
         total_missed = 0
         recent_activity = []
         weekly_data = []
 
-        today = timezone.now().today()
+        today = timezone.localdate()
 
-        # Process Each Medication
         for med in medications:
             for date_str, doses in med.dose_taken.items():
                 for status in doses.values():
@@ -109,7 +105,6 @@ class PatientStatisticsView(generics.GenericAPIView):
                     else:
                         total_missed += 1
 
-        # Recent Activities
         for med in medications:
             for date_str, doses in med.dose_taken.items():
                 for dose_key, status in doses.items():
@@ -117,15 +112,15 @@ class PatientStatisticsView(generics.GenericAPIView):
                         "medication": med.name,
                         "status": "Taken" if status else "Missed",
                         "time": f"{date_str} {dose_key}",
+                        "datetime": f"{date_str} {dose_key}"
                     })
 
         recent_activity = sorted(
             recent_activity,
-            key=lambda x: x.get("datetime", ""),
+            key=lambda x: x["datetime"],
             reverse=True
         )[:8]
 
-        # Weekly
         for i in range(6, -1, -1):
             date = today - timedelta(days=i)
             date_str = str(date)
@@ -147,24 +142,23 @@ class PatientStatisticsView(generics.GenericAPIView):
                 "adherence_rate": round((taken / total) * 100, 2) if total > 0 else 0
             })
 
-            total_doses = total_taken + total_missed
-            adherence_rate = round((total_taken / total_doses) * 100, 2) if total_doses > 0 else 0
+        total_doses = total_taken + total_missed
+        adherence_rate = round((total_taken / total_doses) * 100, 2) if total_doses > 0 else 0
 
-            payload = {
-                "patient": patient.user.full_name,
-                "overview": {
-                    "adherence_rate": adherence_rate,
-                    "taken_doses": total_taken,
-                    "missed_doses": total_missed,
-                    "active_medications": medications.count(),
-                },
-                "weekly_adherence": weekly_data,
-                "recent_activity": recent_activity,
-            }
+        payload = {
+            "patient": patient.user.full_name,
+            "overview": {
+                "adherence_rate": adherence_rate,
+                "taken_doses": total_taken,
+                "missed_doses": total_missed,
+                "active_medications": medications.count(),
+            },
+            "weekly_adherence": weekly_data,
+            "recent_activity": recent_activity,
+        }
 
-            serializer = PatientStatisticsSerializer(payload)
-            return Response(serializer.data)
-
+        serializer = PatientStatisticsSerializer(payload)
+        return Response(serializer.data)
 
 @extend_schema(tags=['Dashboard'])
 class MyPatientsView(generics.ListAPIView):
