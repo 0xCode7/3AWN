@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions
 from rest_framework.views import APIView
@@ -14,7 +16,7 @@ class MedicationListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Medication.objects.filter(user=self.request.user)
+        return Medication.objects.filter(user=self.request.user, is_finished=False)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -163,6 +165,25 @@ class MarkAsTakenView(generics.UpdateAPIView):
 
         medication.dose_taken = dose_data
         medication.save(update_fields=["dose_taken"])
+
+        # Check if medication finished
+        end_data = medication.start_date + timedelta(days=medication.duration_in_days - 1)
+        today = timezone.localdate()
+
+        # Check if all taken
+        all_taken = True
+        for day, doses in dose_data.items():
+            if isinstance(doses, dict):
+                for _, taken in doses.items():
+                    if taken is False:
+                        all_taken = False
+
+        # If we passed duration end date AND all doses taken -> delete medication
+        if today >= end_data and all_taken:
+            medication.is_finished = True
+            return Response({
+                "message": f"{medication.name} treatment completed and removed."
+            }, status=status.HTTP_200_OK)
 
         return Response({
             "message": f"{medication.name} dose {dose_number} marked as taken.",
