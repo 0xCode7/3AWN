@@ -46,7 +46,7 @@ INSTALLED_APPS = [
 
     # My apps
     'authentication',
-    'drugs',
+    'drugs.apps.AppConfig',
     'emergency',
     'dashboard'
 ]
