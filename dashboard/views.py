@@ -79,7 +79,7 @@ class PatientStatisticsView(generics.GenericAPIView):
             if not patient_id:
                 return user.careperson_profile
             try:
-                return user.careperson_profile.patients.get(id=patient_id)
+                return user.careperson_profile.patients.get(id=int(patient_id))
             except Patient.DoesNotExist:
                 raise ValidationError({"patient_id": "Patient not found or unauthorized"})
 
