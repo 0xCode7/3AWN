@@ -88,7 +88,7 @@ class PatientStatisticsView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         patient = self.get_patient(request)
         user = patient.user
-        medications = Medication.objects.filter(user=user)
+        medications = Medication.objects.filter(user=user, is_finished=False)
 
         total_taken = 0
         total_missed = 0
@@ -97,26 +97,40 @@ class PatientStatisticsView(generics.GenericAPIView):
 
         today = timezone.localdate()
 
+        # حساب الجرعات المأخوذة والمفقودة
         for med in medications:
-            for date_str, doses in med.dose_taken.items():
-                if not isinstance(doses, dict):
-                    continue
-                for status in doses.values():
-                    if status:
+            for date_key, doses in med.dose_taken.items():
+                if isinstance(doses, dict):
+                    # يوم فيه أكثر من جرعة
+                    for status in doses.values():
+                        if status:
+                            total_taken += 1
+                        else:
+                            total_missed += 1
+                elif isinstance(doses, bool):
+                    # يوم فيه جرعة واحدة مخزنة كـ bool
+                    if doses:
                         total_taken += 1
                     else:
                         total_missed += 1
 
+        # إعداد recent_activity
         for med in medications:
-            for date_str, doses in med.dose_taken.items():
-                if not isinstance(doses, dict):
-                    continue
-                for dose_key, status in doses.items():
+            for date_key, doses in med.dose_taken.items():
+                if isinstance(doses, dict):
+                    for dose_key, status in doses.items():
+                        recent_activity.append({
+                            "medication": med.name,
+                            "status": "Taken" if status else "Missed",
+                            "time": dose_key,
+                            "datetime": dose_key
+                        })
+                elif isinstance(doses, bool):
                     recent_activity.append({
                         "medication": med.name,
-                        "status": "Taken" if status else "Missed",
-                        "time": f"{date_str} {dose_key}",
-                        "datetime": f"{date_str} {dose_key}"
+                        "status": "Taken" if doses else "Missed",
+                        "time": date_key,
+                        "datetime": date_key
                     })
 
         recent_activity = sorted(
@@ -125,6 +139,7 @@ class PatientStatisticsView(generics.GenericAPIView):
             reverse=True
         )[:8]
 
+        # بيانات الأسبوع الأخير
         for i in range(6, -1, -1):
             date = today - timedelta(days=i)
             date_str = str(date)
@@ -133,10 +148,14 @@ class PatientStatisticsView(generics.GenericAPIView):
             for med in medications:
                 if date_str in med.dose_taken:
                     doses_for_day = med.dose_taken[date_str]
-                    if not isinstance(doses_for_day, dict):
-                        continue
-                    for status in med.dose_taken[date_str].values():
-                        if status:
+                    if isinstance(doses_for_day, dict):
+                        for status in doses_for_day.values():
+                            if status:
+                                taken += 1
+                            else:
+                                missed += 1
+                    elif isinstance(doses_for_day, bool):
+                        if doses_for_day:
                             taken += 1
                         else:
                             missed += 1
@@ -167,6 +186,7 @@ class PatientStatisticsView(generics.GenericAPIView):
         serializer = PatientStatisticsSerializer(payload)
         return Response(serializer.data)
 
+
 @extend_schema(tags=['Dashboard'])
 class MyPatientsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -184,6 +204,7 @@ class MyPatientsView(generics.ListAPIView):
             raise ValidationError({"message": "There is no monitored patients"})
 
         return patients
+
 
 @extend_schema(tags=['Dashboard'])
 class MyCarepersonsView(generics.ListAPIView):
