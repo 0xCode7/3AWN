@@ -95,9 +95,3 @@ class PatientStatisticsSerializer(serializers.Serializer):
     weekly_adherence = DayAdherenceSerializer(many=True)
     recent_activity = RecentActivitySerializer(many=True)
 
-class PatientSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-
-    class Meta:
-        model = Patient
-        fields = ['id', 'user']

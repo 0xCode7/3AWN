@@ -13,24 +13,33 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class PatientSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
     class Meta:
         model = Patient
-        fields = ['id', 'code', 'medical_history']
-        read_only_fields = ['id', 'code']
+        fields = ['id', 'user']
+
+class CarePersonMiniSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = CarePerson
+        fields = ['id', 'user']
 
 
 class CarePersonSerializer(serializers.ModelSerializer):
-    patients = serializers.PrimaryKeyRelatedField(
-        queryset=Patient.objects.all(),
-        many=True,
-        required=False
-    )
+    patients = PatientSerializer(many=True, read_only=True)
 
     class Meta:
         model = CarePerson
         fields = ['id', 'patients']
-        read_only_fields = ['id']
 
+class PatientCarePersonSerializer(serializers.ModelSerializer):
+    carepersons = CarePersonMiniSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Patient
+        fields = ['id', 'carepersons']
 
 class RegisterSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(required=True)
@@ -105,7 +114,6 @@ class ResetPasswordSerializer(serializers.Serializer):
         master_code = os.getenv('MASTER_RESET_CODE')
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError({"message": "Passwords do not match"})
-
 
         try:
             token = AccessToken(data['reset_token'])

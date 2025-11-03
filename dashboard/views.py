@@ -1,5 +1,4 @@
 from datetime import timedelta
-
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
@@ -9,8 +8,9 @@ from django.utils import timezone
 from drugs.models import Medication
 from .models import ConnectionRequest
 from authentication.models import Patient
+from authentication.serializers import PatientSerializer, CarePersonSerializer, CarePersonMiniSerializer
 from .serializers import ConnectionRequestSerializer, ConnectionResponseSerializer, AllConnectionRequestsSerializer, \
-    PatientStatisticsSerializer, PatientSerializer
+    PatientStatisticsSerializer
 
 
 # Return all patient requests
@@ -137,7 +137,7 @@ class PatientStatisticsView(generics.GenericAPIView):
                         if status:
                             taken += 1
                         else:
-                            missed +=1
+                            missed += 1
 
             total = taken + missed
             weekly_data.append({
@@ -151,7 +151,7 @@ class PatientStatisticsView(generics.GenericAPIView):
             adherence_rate = round((total_taken / total_doses) * 100, 2) if total_doses > 0 else 0
 
             payload = {
-                "patient":patient.user.full_name,
+                "patient": patient.user.full_name,
                 "overview": {
                     "adherence_rate": adherence_rate,
                     "taken_doses": total_taken,
@@ -165,8 +165,10 @@ class PatientStatisticsView(generics.GenericAPIView):
             serializer = PatientStatisticsSerializer(payload)
             return Response(serializer.data)
 
+
 @extend_schema(tags=['Dashboard'])
-class MonitoredPatientsViews(generics.ListAPIView):
+class MyPatientsView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = PatientSerializer
 
     def get_queryset(self):
@@ -182,4 +184,19 @@ class MonitoredPatientsViews(generics.ListAPIView):
 
         return patients
 
+@extend_schema(tags=['Dashboard'])
+class MyCarepersonsView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CarePersonMiniSerializer
 
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role != 'patient':
+            raise ValidationError({'message': 'Invalid Role'})
+
+        carepersons = user.patient_profile.carepersons.all()
+        if not carepersons:
+            raise ValidationError({"message": "There is no carepersons"})
+
+        return carepersons
