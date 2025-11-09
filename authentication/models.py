@@ -41,6 +41,9 @@ class Patient(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self):
+        if not self.user_id:
+            return
+
         if self.user.role != 'patient':
             raise ValidationError("Linked user must have role = 'patient'")
 
@@ -53,6 +56,8 @@ class CarePerson(models.Model):
     patients = models.ManyToManyField(Patient, blank=True, related_name='carepersons')
 
     def clean(self):
+        if not self.user_id:
+            return
         if self.user.role != 'careperson':
             raise ValidationError("Linked user must have role = 'careperson'")
 
