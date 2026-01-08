@@ -40,4 +40,5 @@ node_modules/
 dist/
 build/
 data/
+ddi_model/
 "@ | Out-File -Encoding utf8 .gitignore

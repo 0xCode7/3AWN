@@ -1,12 +1,11 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 import os
-from django.conf import settings
 
-MODEL_PATH = os.path.join(settings.BASE_DIR, "ddi_model")
+HF_REPO = "0xCode/3AWN"   # Hugging Face
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+tokenizer = AutoTokenizer.from_pretrained(HF_REPO)
+model = AutoModelForSequenceClassification.from_pretrained(HF_REPO)
 model.eval()
 
 

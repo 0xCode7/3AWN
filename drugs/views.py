@@ -259,7 +259,6 @@ class DDIPredictView(GenericAPIView):
         # ===== Active Ingredient A =====
         try:
             ai_a = ActiveIngredient.objects.get(name__iexact=name_a)
-            print(ai_a.smiles)
             smiles_a.append(ai_a.smiles) if ai_a.smiles else smiles_a.append(get_smiles_from_pubchem(name_a))
         except ActiveIngredient.DoesNotExist:
             smiles = get_smiles_from_pubchem(name_a)
