@@ -39,4 +39,5 @@ Thumbs.db
 node_modules/
 dist/
 build/
+data/
 "@ | Out-File -Encoding utf8 .gitignore
