@@ -1,213 +1,301 @@
 from datetime import timedelta
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, permissions
-from rest_framework.views import APIView
+from rest_framework import generics, permissions, status
+from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
 from django.utils import timezone
-from .models import Medication, Drug, DrugAlternative
-from .serializers import MedicationSerializer, DrugAlternativeSerializer
-from drugs.ai_model.ddi_model import predict_ddi_api
 
+from .models import Medication, Drug, DrugAlternative, ActiveIngredient
+from .serializers import (
+    MedicationSerializer,
+    DrugAlternativeSerializer,
+    DDIPredictSerializer
+)
+
+from drugs.services.ddi_model import predict_ddi
+from drugs.utils.ddi import classify_severity
+from drugs.services.pubchem import get_smiles_from_pubchem
+from .services.smiles_resolver import resolve_smiles_for_medication
+
+
+# =========================
+# Medication List & Create
+# =========================
 @extend_schema(tags=["Drugs"])
 class MedicationListCreateView(generics.ListCreateAPIView):
     serializer_class = MedicationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Medication.objects.filter(user=self.request.user, is_finished=False)
+        return Medication.objects.filter(
+            user=self.request.user,
+            is_finished=False
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # ✅ Check if medication already exists
-        if Medication.objects.filter(user=request.user, name__iexact=serializer.validated_data["name"]).exists():
+        # Prevent duplicates
+        if Medication.objects.filter(
+                user=request.user,
+                name__iexact=serializer.validated_data["name"]
+        ).exists():
             return Response(
                 {"detail": "Medication already exists for this user."},
                 status=status.HTTP_200_OK
             )
 
-        # ✅ Save new medication
-        medication = serializer.save(user=self.request.user)
+        medication = serializer.save(user=request.user)
 
-        # ✅ Get user's existing meds (excluding the new one)
-        user_meds = Medication.objects.filter(user=self.request.user).exclude(id=medication.id)
+        user_meds = Medication.objects.filter(
+            user=request.user
+        ).exclude(id=medication.id)
+
         interactions = []
 
-        # ✅ Get active ingredient of new medication
-        try:
-            drug_obj = Drug.objects.get(name__iexact=medication.name)
-            new_active = drug_obj.active_ingredient
-        except Drug.DoesNotExist:
-            new_active = medication.name
+        # =========================
+        # Resolve NEW medication SMILES
+        # =========================
+        new_smiles = resolve_smiles_for_medication(medication.name)
 
-        # ✅ Check interaction with all previous medications
+        if not new_smiles:
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                {**serializer.data, "severity_check": []},
+                status=status.HTTP_201_CREATED,
+                headers=headers
+            )
+
+        # =========================
+        # Check interactions
+        # =========================
         for med in user_meds:
-            try:
-                existing_drug = Drug.objects.get(name__iexact=med.name)
-                existing_active = existing_drug.active_ingredient
-            except Drug.DoesNotExist:
-                existing_active = med.name
+            existing_smiles = resolve_smiles_for_medication(med.name)
 
-            result = predict_ddi_api(new_active, existing_active)
+            if not existing_smiles:
+                continue
 
-            if result.get("label") == "yes":
+            max_score = 0.0
+
+            for s1 in new_smiles:
+                for s2 in existing_smiles:
+                    score = predict_ddi(s1, s2)
+                    max_score = max(max_score, score)
+
+            if max_score >= 0.7:
                 interactions.append({
                     "with": med.name,
-                    "severity": result["message"],
-                    "probability": result["probability"],
-                    "severity_category": result["severity_category"]
+                    "interaction_probability": round(max_score, 4),
+                    "risk_level": classify_severity(max_score)
                 })
 
         headers = self.get_success_headers(serializer.data)
 
-        # ✅ Return medication + interactions
         return Response(
             {**serializer.data, "severity_check": interactions},
             status=status.HTTP_201_CREATED,
             headers=headers
         )
 
+
+# =========================
+# Medication Detail
+# =========================
 @extend_schema(tags=["Drugs"])
 class MedicationDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = MedicationSerializer
     permission_classes = [permissions.IsAuthenticated]
-    lookup_field = 'id'
+    lookup_field = "id"
 
     def get_queryset(self):
         return Medication.objects.filter(user=self.request.user)
 
+
+# =========================
+# Drug Alternatives
+# =========================
 @extend_schema(tags=["Drugs"])
 class DrugAlternativesView(generics.ListAPIView):
     serializer_class = DrugAlternativeSerializer
 
     def get_queryset(self):
         params = self.request.query_params
+        name = params.get("name")
+        drug_id = params.get("id")
 
-        query = params.get('name')
-        drug_id = params.get('id')
-
-        if query:
-            drug = Drug.objects.filter(name__iexact=query).first()
+        drug = None
+        if name:
+            drug = Drug.objects.filter(name__iexact=name).first()
         elif drug_id:
             drug = Drug.objects.filter(id=drug_id).first()
-        else:
-            return Drug.objects.none()
 
-        # If no matching drug found → return empty queryset
         if not drug:
-            return Drug.objects.none()
+            return DrugAlternative.objects.none()
 
-        print(drug)
-        # Return drugs with same active ingredient but exclude current drug
-        return DrugAlternative.objects.filter(
-            drug_id=drug.id
-        ).exclude(id=drug.id)
+        return DrugAlternative.objects.filter(drug=drug)
 
+
+# =========================
+# Herbal Alternatives
+# =========================
 @extend_schema(tags=["Drugs"])
-class HerbalAlternativesView(generics.GenericAPIView):
+class HerbalAlternativesView(GenericAPIView):
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
         params = request.query_params
-        query = params.get('name')
-        drug_id = params.get('id')
+        name = params.get("name")
+        drug_id = params.get("id")
 
-        if query:
-            drug = Drug.objects.filter(name__icontains=query).first()
+        drug = None
+        if name:
+            drug = Drug.objects.filter(name__icontains=name).first()
         elif drug_id:
             drug = Drug.objects.filter(id=drug_id).first()
-        else:
-            return Response({"error": "Missing 'name' or 'id' parameter."}, status=status.HTTP_400_BAD_REQUEST)
 
         if not drug:
-            return Response({"error": "Drug not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Drug not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        herbal_alternatives = DrugAlternative.objects.filter(drug=drug).exclude(herbal_alternatives__isnull=True)
+        alternatives = DrugAlternative.objects.filter(
+            drug=drug,
+            herbal_alternatives__isnull=False
+        )
 
         herbs = set()
-        for alt in herbal_alternatives:
-            if alt.herbal_alternatives:
-                herbs.update([h.strip() for h in alt.herbal_alternatives.split(',') if h.strip()])
+        for alt in alternatives:
+            herbs.update(
+                h.strip()
+                for h in alt.herbal_alternatives.split(",")
+                if h.strip()
+            )
 
         return Response({
             "drug": drug.name,
             "herbal_alternatives": sorted(list(herbs))
-        }, status=status.HTTP_200_OK)
+        })
 
+
+# =========================
+# Mark Dose as Taken
+# =========================
 @extend_schema(tags=["Drugs"])
 class MarkAsTakenView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def patch(self, request, id):
         try:
-            medication = Medication.objects.get(pk=id, user=request.user)
+            medication = Medication.objects.get(
+                id=id,
+                user=request.user
+            )
         except Medication.DoesNotExist:
             return Response(
-                {"error": "Medication not found or not authorized."},
+                {"error": "Medication not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        dose_number = request.data.get('dose_number')
-
+        dose_number = request.data.get("dose_number")
         if dose_number is None:
-            return Response({"error": "dose_number is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "dose_number is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        today_str = timezone.localdate().isoformat()
+        today = timezone.localdate()
+        today_str = today.isoformat()
+
         dose_data = medication.dose_taken or {}
-
-        if today_str not in dose_data:
-            dose_data[today_str] = {}
-
-        dose_key = f"dose-{dose_number}"
-        dose_data[today_str][dose_key] = True
+        dose_data.setdefault(today_str, {})
+        dose_data[today_str][f"dose-{dose_number}"] = True
 
         medication.dose_taken = dose_data
         medication.save(update_fields=["dose_taken"])
 
-        # Check if medication finished
-        end_data = medication.start_date + timedelta(days=medication.duration_in_days - 1)
-        today = timezone.localdate()
+        end_date = medication.start_date + timedelta(
+            days=medication.duration_in_days - 1
+        )
 
-        # Check if all taken
-        all_taken = True
-        for day, doses in dose_data.items():
-            if isinstance(doses, dict):
-                for _, taken in doses.items():
-                    if taken is False:
-                        all_taken = False
+        all_taken = all(
+            taken for day in dose_data.values()
+            for taken in day.values()
+        )
 
-        # If we passed duration end date AND all doses taken -> delete medication
-        if today >= end_data and all_taken:
+        if today >= end_date and all_taken:
             medication.is_finished = True
+            medication.save(update_fields=["is_finished"])
             return Response({
-                "message": f"{medication.name} treatment completed and removed."
-            }, status=status.HTTP_200_OK)
+                "message": f"{medication.name} treatment completed."
+            })
 
         return Response({
             "message": f"{medication.name} dose {dose_number} marked as taken.",
-            "date": today_str,
-            "dose_taken": dose_data[today_str]
-        }, status=status.HTTP_200_OK)
+            "date": today_str
+        })
 
+
+# =========================
+# DDI Predict API
+# =========================
 @extend_schema(tags=["Drugs"])
-class DDIPredictView(APIView):
+class DDIPredictView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = DDIPredictSerializer
+
     def post(self, request):
-        drug_a = request.data.get("drug_a", "").strip()
-        drug_b = request.data.get("drug_b", "").strip()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if not drug_a or not drug_b:
-            return Response(
-                {"error": "Both drug_a and drug_b are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        name_a = serializer.validated_data["drug_a"]
+        name_b = serializer.validated_data["drug_b"]
 
+        smiles_a = []
+        smiles_b = []
+
+        # ===== Active Ingredient A =====
         try:
-            result = predict_ddi_api(drug_a, drug_b)
-            return Response(result)
-        except Exception as e:
+            ai_a = ActiveIngredient.objects.get(name__iexact=name_a)
+            print(ai_a.smiles)
+            smiles_a.append(ai_a.smiles) if ai_a.smiles else smiles_a.append(get_smiles_from_pubchem(name_a))
+        except ActiveIngredient.DoesNotExist:
+            smiles = get_smiles_from_pubchem(name_a)
+            if smiles:
+                smiles_a.append(smiles)
+
+        # ===== Active Ingredient B =====
+        try:
+            ai_b = ActiveIngredient.objects.get(name__iexact=name_b)
+            smiles_b.append(ai_b.smiles) if ai_b.smiles else smiles_b.append(get_smiles_from_pubchem(name_b))
+        except ActiveIngredient.DoesNotExist:
+            smiles = get_smiles_from_pubchem(name_b)
+            if smiles:
+                smiles_b.append(smiles)
+
+        # ===== Validation =====
+        if not smiles_a or not smiles_b:
             return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Could not resolve SMILES for one or both active ingredients."},
+                status=400
             )
+
+        # ===== DDI Prediction =====
+        max_score = 0.0
+        for s1 in smiles_a:
+            for s2 in smiles_b:
+                score = predict_ddi(s1, s2)
+                max_score = max(max_score, score)
+
+        return Response({
+            "active_ingredient_a": name_a,
+            "active_ingredient_b": name_b,
+            "interaction_probability": round(max_score, 4),
+            "risk_level": classify_severity(max_score),
+            "smiles_source": {
+                "active_ingredient_a": "db" if len(smiles_a) else "pubchem",
+                "active_ingredient_b": "db" if len(smiles_b) else "pubchem"
+            }
+        })

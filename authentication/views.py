@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, ForgotPasswordSerializer, \
-    ResetPasswordSerializer, PatientSerializer, CarePersonSerializer
+    ResetPasswordSerializer, PatientSerializer, CarePersonSerializer, LogoutSerializer
 from django.contrib.auth import get_user_model
 from rest_framework import status, generics
 from rest_framework.response import Response
@@ -64,7 +64,7 @@ class LoginView(GenericAPIView):
 
 @extend_schema(tags=["Authentication"])
 class LogoutView(GenericAPIView):
-    serializer_class = serializers.Serializer  # dummy, so schema works
+    serializer_class = LogoutSerializer  # dummy, so schema works
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
@@ -78,7 +78,7 @@ class LogoutView(GenericAPIView):
 
 
 @extend_schema(tags=["Authentication"])
-class ProfileView(APIView):
+class ProfileView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
 
@@ -103,13 +103,12 @@ class ProfileView(APIView):
         })
 
 
-
 @extend_schema(tags=["Authentication"])
-class ForgotPasswordView(APIView):
+class ForgotPasswordView(GenericAPIView):
     serializer_class = ForgotPasswordSerializer
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
 
@@ -132,6 +131,8 @@ class ForgotPasswordView(APIView):
 
 @extend_schema(tags=["Authentication"])
 class ResetPasswordView(APIView):
+    serializer_class = ResetPasswordSerializer
+
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -155,7 +156,6 @@ class ResetPasswordView(APIView):
         user.save()
 
         return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)
-
 
 
 @extend_schema(tags=["Authentication"])
