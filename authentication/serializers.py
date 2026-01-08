@@ -97,6 +97,8 @@ class LoginSerializer(serializers.Serializer):
             }
         }
 
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
 
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)

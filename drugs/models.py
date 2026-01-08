@@ -1,13 +1,23 @@
 from django.db import models
 from authentication.models import User
 
+class ActiveIngredient(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    smiles = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 class Drug(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    active_ingredient = models.CharField(max_length=255)
+    active_ingredients = models.ManyToManyField(
+        ActiveIngredient,
+        related_name="drugs",
+        blank=True
+    )
 
     def __str__(self):
-        return f"{self.name} -> {self.active_ingredient}"
+        return f"{self.name}"
 
 class DrugAlternative(models.Model):
     drug = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name="alternatives")

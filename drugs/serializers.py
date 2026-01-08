@@ -29,5 +29,5 @@ class MedicationSerializer(serializers.ModelSerializer):
 
 
 class DDIPredictSerializer(serializers.Serializer):
-    drug1 = serializers.CharField(max_length=255)
-    drug2 = serializers.CharField(max_length=255)
+    drug_a = serializers.CharField(max_length=255)
+    drug_b = serializers.CharField(max_length=255)

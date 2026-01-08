@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Medication, Drug, DrugAlternative
+from .models import Medication, Drug, DrugAlternative, ActiveIngredient
 
 
 # Register your models here.
@@ -8,9 +8,13 @@ class MedicationAdmin(admin.ModelAdmin):
     pass
 
 
+@admin.register(ActiveIngredient)
+class ActiveIngredientAdmin(admin.ModelAdmin):
+    pass
+
 @admin.register(Drug)
 class DrugAdmin(admin.ModelAdmin):
-    pass
+    search_fields = ['name']
 
 
 @admin.register(DrugAlternative)
