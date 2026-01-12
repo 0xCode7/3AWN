@@ -143,6 +143,7 @@ class DrugAlternativesView(generics.ListAPIView):
 # =========================
 @extend_schema(tags=["Drugs"])
 class HerbalAlternativesView(GenericAPIView):
+    serializer_class = DrugAlternativeSerializer
 
     def get(self, request):
         params = request.query_params
@@ -186,6 +187,7 @@ class HerbalAlternativesView(GenericAPIView):
 @extend_schema(tags=["Drugs"])
 class MarkAsTakenView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MedicationSerializer
 
     def patch(self, request, id):
         try:

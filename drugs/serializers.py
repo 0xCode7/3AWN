@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Medication,Drug, DrugAlternative
+from .models import Medication, Drug, DrugAlternative
 from datetime import date
 
 
@@ -8,12 +8,15 @@ class DrugSerializer(serializers.ModelSerializer):
         model = Drug
         fields = '__all__'
 
+
 class DrugAlternativeSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='substitute')
-    active_ingredient = serializers.CharField(source="drug.active_ingredient")
+    active_ingredients = serializers.StringRelatedField(many=True, source="drug.active_ingredients")
+
     class Meta:
         model = DrugAlternative
-        fields = ["id", "name", "active_ingredient"]
+        fields = ["id", "name", "active_ingredients"]
+
 
 class MedicationSerializer(serializers.ModelSerializer):
     class Meta:
