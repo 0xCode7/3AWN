@@ -1,11 +1,21 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from huggingface_hub import snapshot_download
 import torch
 import os
 
-HF_REPO = "0xCode/3AWN"   # Hugging Face
+HF_REPO = "0xCode/3AWN"
+HF_CACHE_DIR = "/app/hf_models/3awn_ddi"
 
-tokenizer = AutoTokenizer.from_pretrained(HF_REPO)
-model = AutoModelForSequenceClassification.from_pretrained(HF_REPO)
+# auto-update
+snapshot_download(
+    repo_id=HF_REPO,
+    local_dir=HF_CACHE_DIR,
+    local_dir_use_symlinks=False,
+    resume_download=True,
+)
+
+tokenizer = AutoTokenizer.from_pretrained(HF_CACHE_DIR)
+model = AutoModelForSequenceClassification.from_pretrained(HF_CACHE_DIR)
 model.eval()
 
 
