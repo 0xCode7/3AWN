@@ -10,6 +10,7 @@ urlpatterns = [
     path('api/drugs/', include('drugs.urls', namespace="drugs")),
     path('api/emergency/', include('emergency.urls', namespace="emergency")),
     path('api/dashboard/', include('dashboard.urls', namespace="dashboard")),
+    path('api/providers/', include('providers.urls', namespace="providers")),
 
     # YOUR PATTERNS
     path('', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),

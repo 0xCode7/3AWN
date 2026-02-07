@@ -48,7 +48,8 @@ INSTALLED_APPS = [
     'authentication',
     'drugs',
     'emergency',
-    'dashboard'
+    'dashboard',
+    'providers',
 ]
 
 MIDDLEWARE = [

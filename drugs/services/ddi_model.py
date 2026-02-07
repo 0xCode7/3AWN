@@ -1,25 +1,35 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from huggingface_hub import snapshot_download
 import torch
-import os
 
 HF_REPO = "0xCode/3AWN"
-HF_CACHE_DIR = "/app/hf_models/3awn_ddi"
+HF_CACHE_DIR = "./hf_models"
 
-# auto-update
-snapshot_download(
-    repo_id=HF_REPO,
-    local_dir=HF_CACHE_DIR,
-    local_dir_use_symlinks=False,
-    resume_download=True,
-)
 
-tokenizer = AutoTokenizer.from_pretrained(HF_CACHE_DIR)
-model = AutoModelForSequenceClassification.from_pretrained(HF_CACHE_DIR)
-model.eval()
+tokenizer = None
+model = None
+
+
+def load_model():
+    global tokenizer, model
+
+    if model is None:
+
+        snapshot_download(
+            repo_id=HF_REPO,
+            local_dir=HF_CACHE_DIR,
+        )
+
+        tokenizer = AutoTokenizer.from_pretrained(HF_CACHE_DIR)
+        model = AutoModelForSequenceClassification.from_pretrained(HF_CACHE_DIR)
+
+        model.eval()
 
 
 def predict_ddi(smiles1: str, smiles2: str) -> float:
+
+    load_model()   # 🔥 lazy loading
+
     inputs = tokenizer(
         smiles1,
         smiles2,
