@@ -277,6 +277,7 @@ class DDIPredictView(GenericAPIView):
                 smiles_b.append(smiles)
 
         # ===== Validation =====
+        print(smiles_a, smiles_b)
         if not smiles_a or not smiles_b:
             return Response(
                 {"error": "Could not resolve SMILES for one or both active ingredients."},
