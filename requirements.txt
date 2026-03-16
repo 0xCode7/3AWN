@@ -30,6 +30,8 @@ RapidFuzz==3.14.1
 requests==2.32.5
 six==1.17.0
 sqlparse==0.5.3
+transformers==4.57.3
+torch --index-url https://download.pytorch.org/whl/cpu
 typing_extensions==4.15.0
 tzdata==2025.2
 uritemplate==4.2.0
