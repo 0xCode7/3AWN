@@ -41,7 +41,7 @@ ddi_model/
 # Hugging Face cache
 .cache/
 hf_cache/
-
+hf_models/
 # Node (if any)
 node_modules/
 dist/
